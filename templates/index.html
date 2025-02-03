@@ -1,16 +1,317 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html data-theme="light">
 <head>
-    <meta charset="utf-8">
-    <link rel="stylesheet" href="../static/styles.css">
-    <title>Web App TD IA Cloud M2 Carrilho</title>
+    <title>Moteur de Recherche IA Cloud</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <h1>Web App TD IA Cloud M2 Carrilho</h1>
-    <p>Formulaire de recherche</p>
-    <form action="/formulaire" method=["GET", "POST", "DELETE", "UPDATE","PUT"]>
-        <input type="text" name="query" placeholder="Saisir votre recherche">
-        <input type="submit" value="Rechercher">
-    </form>
+    <div class="theme-switch">
+        <button id="themeToggle" title="Changer le thème">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <div class="notifications-container" id="notifications"></div>
+
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-robot"></i> IA Cloud Search</h1>
+            <p class="subtitle">Moteur de recherche intelligent - M2 Carrilho</p>
+        </header>
+
+        <div class="actions-container">
+            <button id="addDocumentBtn" class="action-btn">
+                <i class="fas fa-plus"></i>
+                Ajouter un document
+            </button>
+        </div>
+
+        <!-- Modal pour ajouter un document -->
+        <div id="addDocumentModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>
+                        <i class="fas fa-file-circle-plus"></i>
+                        Ajouter un document
+                    </h2>
+                    <button class="close-btn" title="Fermer" onclick="closeModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="documentForm" onsubmit="submitDocument(event)">
+                    <div class="form-group">
+                        <label for="documentTitle">
+                            <i class="fas fa-heading"></i>
+                            Titre du document
+                        </label>
+                        <input type="text" 
+                               id="documentTitle" 
+                               name="title" 
+                               required
+                               placeholder="Entrez le titre du document..."
+                               autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="documentContent">
+                            <i class="fas fa-align-left"></i>
+                            Contenu
+                        </label>
+                        <textarea id="documentContent" 
+                                  name="content" 
+                                  rows="10" 
+                                  required
+                                  placeholder="Saisissez le contenu du document..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                            <i class="fas fa-times"></i>
+                            Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>
+                            Ajouter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <form action="{{ url_for('search') }}" method="GET">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" 
+                           name="query" 
+                           placeholder="Rechercher dans les documents..." 
+                           value="{{ query if query }}" 
+                           required
+                           autocomplete="off"
+                           id="searchInput">
+                    <button type="submit">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% if query %}
+        <div class="search-info">
+            <div class="search-stats">
+                <i class="fas fa-info-circle"></i>
+                Recherche effectuée en <span class="highlight">0.5 secondes</span>
+                {% if results %}
+                | {{ results|length }} résultat(s) trouvé(s)
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="error">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if results %}
+        <div class="results">
+            {% for result in results %}
+            <div class="result-item" data-id="{{ result.id }}">
+                <div class="result-header">
+                    <h3>
+                        <i class="fas fa-file-alt"></i>
+                        Document {{ result.id }}
+                    </h3>
+                    <div class="similarity-badge" style="--similarity: {{ result.similarity }}%">
+                        {{ result.similarity }}% pertinent
+                    </div>
+                </div>
+                <div class="preview">
+                    {{ result.document }}
+                </div>
+                <div class="result-footer">
+                    <button class="expand-btn" onclick="toggleFullText(this)">
+                        <i class="fas fa-chevron-down"></i>
+                        Voir plus
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif no_results_message %}
+        <div class="no-results">
+            <i class="fas fa-search"></i>
+            <p>{{ no_results_message }}</p>
+            <p class="suggestion">Essayez avec d'autres mots-clés ou vérifiez l'orthographe</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer>
+        <p> 2025 IA Cloud Search - Tous droits réservés</p>
+    </footer>
+
+    <script>
+        // Gestion du thème sombre/clair
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        
+        // Charger le thème sauvegardé
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        html.dataset.theme = savedTheme;
+        updateThemeIcon(savedTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const newTheme = html.dataset.theme === 'light' ? 'dark' : 'light';
+            html.dataset.theme = newTheme;
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+
+        function updateThemeIcon(theme) {
+            const icon = themeToggle.querySelector('i');
+            if (theme === 'dark') {
+                icon.className = 'fas fa-sun';
+                themeToggle.title = 'Passer en mode clair';
+            } else {
+                icon.className = 'fas fa-moon';
+                themeToggle.title = 'Passer en mode sombre';
+            }
+        }
+
+        // Fonction pour fermer le modal
+        function closeModal() {
+            const modal = document.getElementById('addDocumentModal');
+            modal.classList.remove('show');
+            // Réinitialiser le formulaire
+            document.getElementById('documentForm').reset();
+        }
+
+        // Gestion du modal d'ajout de document
+        const modal = document.getElementById('addDocumentModal');
+        const addDocumentBtn = document.getElementById('addDocumentBtn');
+        const closeBtns = document.querySelectorAll('.close-btn');
+
+        addDocumentBtn.addEventListener('click', () => {
+            modal.classList.add('show');
+        });
+
+        closeBtns.forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        // Fermer le modal en cliquant en dehors
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Animation de la barre de recherche
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('focus', () => {
+            document.querySelector('.search-box').classList.add('focused');
+        });
+        searchInput.addEventListener('blur', () => {
+            document.querySelector('.search-box').classList.remove('focused');
+        });
+
+        // Fonction pour voir plus/moins de texte
+        function toggleFullText(btn) {
+            const resultItem = btn.closest('.result-item');
+            const preview = resultItem.querySelector('.preview');
+            
+            if (preview.classList.contains('expanded')) {
+                preview.classList.remove('expanded');
+                btn.innerHTML = '<i class="fas fa-chevron-down"></i> Voir plus';
+            } else {
+                preview.classList.add('expanded');
+                btn.innerHTML = '<i class="fas fa-chevron-up"></i> Voir moins';
+            }
+        }
+
+        // Système de notifications
+        function showNotification(type, title, message) {
+            const container = document.getElementById('notifications');
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            notification.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Animation d'entrée
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            // Auto-suppression après 5 secondes
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            }, 5000);
+        }
+
+        // Fonction pour soumettre le document en AJAX
+        async function submitDocument(event) {
+            event.preventDefault();
+            
+            const form = document.getElementById('documentForm');
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('{{ url_for("add_document") }}', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Fermer le modal
+                    modal.classList.remove('show');
+                    // Réinitialiser le formulaire
+                    form.reset();
+                    // Afficher une notification de succès
+                    showNotification(
+                        'success',
+                        'Document ajouté !',
+                        'Le document a été ajouté avec succès à la base de données.'
+                    );
+                    // Recharger la page pour voir le nouveau document
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showNotification(
+                        'error',
+                        'Erreur',
+                        result.message || 'Une erreur est survenue lors de l\'ajout du document.'
+                    );
+                }
+            } catch (error) {
+                showNotification(
+                    'error',
+                    'Erreur',
+                    'Une erreur inattendue est survenue lors de l\'ajout du document.'
+                );
+                console.error('Erreur:', error);
+            }
+        }
+    </script>
 </body>
 </html>
