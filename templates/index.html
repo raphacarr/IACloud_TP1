@@ -78,6 +78,54 @@
             </div>
         </div>
 
+        <div id="searchResults">
+            <div class="document-list">
+                {% for result in results %}
+                <div class="document-item">
+                    <div class="document-content">
+                        <h3>{{ result.document }}</h3>
+                        <p>{{ result.document[:200] }}{% if result.document|length > 200 %}...{% endif %}</p>
+                        <a href="#" class="read-more">Lire plus</a>
+                    </div>
+                    <div class="document-actions">
+                        <button class="btn btn-icon btn-danger delete-doc" onclick="deleteDocument('{{ result.document }}')" title="Supprimer">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Modal de confirmation de suppression -->
+        <div id="deleteModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Confirmation de suppression
+                    </h2>
+                    <button class="close-btn" title="Fermer" onclick="closeDeleteModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir supprimer ce document ?</p>
+                    <p class="document-title"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">
+                        <i class="fas fa-times"></i>
+                        Annuler
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                        <i class="fas fa-trash-alt"></i>
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="search-container">
             <form action="{{ url_for('search') }}" method="GET">
                 <div class="search-box">
@@ -311,6 +359,51 @@
                 );
                 console.error('Erreur:', error);
             }
+        }
+
+        // Gestion de la suppression des documents
+        let documentToDelete = null;
+
+        function deleteDocument(title) {
+            documentToDelete = title;
+            const modal = document.getElementById('deleteModal');
+            const documentTitle = modal.querySelector('.document-title');
+            documentTitle.textContent = title;
+            modal.classList.add('show');
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            modal.classList.remove('show');
+            documentToDelete = null;
+        }
+
+        function confirmDelete() {
+            if (!documentToDelete) return;
+
+            fetch('/delete_document', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title: documentToDelete })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Document supprimé avec succès !', 'success');
+                    // Recharger la liste des documents
+                    location.reload();
+                } else {
+                    showNotification('Erreur lors de la suppression du document.', 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Erreur lors de la suppression du document.', 'error');
+            })
+            .finally(() => {
+                closeDeleteModal();
+            });
         }
     </script>
 </body>

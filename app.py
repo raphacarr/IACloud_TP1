@@ -167,5 +167,39 @@ def add_document():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
 
+@app.route('/delete_document', methods=['POST'])
+def delete_document():
+    try:
+        data = request.get_json()
+        title = data.get('title')
+        
+        if not title:
+            return jsonify({'success': False, 'error': 'Titre manquant'}), 400
+
+        # Charger les documents existants
+        with open('documents.json', 'r', encoding='utf-8') as f:
+            documents = json.load(f)
+
+        # Chercher et supprimer le document
+        document_found = False
+        for i, doc in enumerate(documents):
+            if doc['title'] == title:
+                documents.pop(i)
+                document_found = True
+                break
+
+        if not document_found:
+            return jsonify({'success': False, 'error': 'Document non trouvé'}), 404
+
+        # Sauvegarder les modifications
+        with open('documents.json', 'w', encoding='utf-8') as f:
+            json.dump(documents, f, ensure_ascii=False, indent=2)
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        print(f"Erreur lors de la suppression du document: {str(e)}")
+        return jsonify({'success': False, 'error': 'Erreur serveur'}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80, debug=True)
